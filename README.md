@@ -26,3 +26,10 @@ You can check out the [create-t3-app GitHub repository](https://github.com/t3-os
 ## How do I deploy this?
 
 Follow our deployment guides for [Vercel](https://create.t3.gg/en/deployment/vercel), [Netlify](https://create.t3.gg/en/deployment/netlify) and [Docker](https://create.t3.gg/en/deployment/docker) for more information.
+
+
+## Use Cases
+- As a user, I can take a picture of a face with my phone and upload it to the app
+- As a user, I can make payment to the app then associate it with the face.
+- As a restaurant employee, I can scan the face to see if it matches a picture in the database
+- As a restaurant employee, I can see a list of items that matches the cumulative payment of the face
