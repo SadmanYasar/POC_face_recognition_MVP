@@ -1,11 +1,100 @@
-import { signIn, signOut, useSession } from "next-auth/react";
 import Head from "next/head";
-import WebCam from "~/components/Webcam";
-
-import { api } from "~/utils/api";
+import { useEffect, useState, useRef } from "react";
+import * as cocoSsd from "@tensorflow-models/coco-ssd";
+import * as tf from "@tensorflow/tfjs";
+import Webcam from "react-webcam";
 
 export default function Home() {
   // const hello = api.example.hello.useQuery({ text: "from tRPC" });
+  const webcamRef = useRef<Webcam | null>(null);
+
+  const [videoWidth, setVideoWidth] = useState(600);
+  const [videoHeight, setVideoHeight] = useState(600);
+
+  const [model, setModel] = useState<cocoSsd.ObjectDetection | null>(null);
+
+  async function loadModel() {
+    try {
+      const model = await cocoSsd.load();
+      setModel(model);
+      console.log("setloadedModel");
+    } catch (err) {
+      console.log(err);
+      console.log("failed load model");
+    }
+  }
+
+  async function predictionFunction() {
+    if (!model || !webcamRef.current?.video) return;
+
+    const predictions = await model.detect(webcamRef.current.video);
+    const cnvs = document.getElementById("myCanvas") as HTMLCanvasElement;
+    cnvs.width = webcamRef.current.video.videoWidth;
+    cnvs.height = webcamRef.current.video.videoHeight;
+
+    const ctx = cnvs.getContext("2d");
+    if (!ctx) return; // fix for 'ctx' is possibly 'null'
+    ctx.clearRect(
+      0,
+      0,
+      webcamRef.current.video.videoWidth,
+      webcamRef.current.video.videoHeight,
+    );
+
+    if (predictions.length > 0) {
+      console.log(predictions);
+      for (let n = 0; n < predictions.length; n++) {
+        // Check scores
+        console.log(n);
+        if (predictions[n]!.score > 0.8) {
+          const bboxLeft = predictions[n]!.bbox[0]; // fix for 'bboxLeft' is never reassigned
+          const bboxTop = predictions[n]!.bbox[1]; // fix for 'bboxTop' is never reassigned
+          const bboxWidth = predictions[n]!.bbox[2]; // fix for 'bboxWidth' is never reassigned
+          const bboxHeight = predictions[n]!.bbox[3]; // fix for 'bboxHeight' is never reassigned
+
+          console.log("bboxLeft: " + bboxLeft);
+          console.log("bboxTop: " + bboxTop);
+
+          console.log("bboxWidth: " + bboxWidth);
+
+          console.log("bboxHeight: " + bboxHeight);
+
+          ctx.beginPath();
+          ctx.font = "28px Arial"; // fix for 'ctx' is possibly 'null'
+          ctx.fillStyle = "red";
+
+          ctx.fillText(predictions[n]!.class, bboxLeft, bboxTop);
+
+          ctx.rect(bboxLeft, bboxTop, bboxWidth, bboxHeight);
+          ctx.strokeStyle = "#FF0000";
+
+          ctx.lineWidth = 5;
+          ctx.stroke();
+
+          console.log("detected");
+        }
+      }
+    }
+
+    setTimeout(() => {
+      // Your asynchronous code here
+      predictionFunction()
+        .then(() => {
+          // Code to run after the async operation completes
+        })
+        .catch((error) => {
+          // Handle any errors that occur during the async operation
+        });
+    }, 500);
+  }
+
+  useEffect(() => {
+    void (async () => {
+      await tf.ready();
+      await loadModel();
+      await predictionFunction();
+    })();
+  }, []);
 
   return (
     <>
@@ -14,38 +103,16 @@ export default function Home() {
         <meta name="description" content="Sadman Yasar Sayem" />
         <link rel="icon" href="/favicon.ico" />
       </Head>
-      <main className="flex min-h-screen flex-col items-center justify-center bg-gray-800">
-        <div className="container absolute top-0 flex flex-col items-center justify-center">
-          <WebCam />
-        </div>
-        <div className="absolute top-0 z-[9999] bg-red-400 text-white opacity-50">
-          Result
-        </div>
+      <main className="flex min-h-screen flex-col bg-gray-800">
+        <>
+          <div className="container absolute top-0">
+            <Webcam id="img" ref={webcamRef} />
+          </div>
+          <div className="absolute top-0 z-[9999] text-white opacity-50">
+            <canvas id="myCanvas" className="w-full" />
+          </div>
+        </>
       </main>
     </>
-  );
-}
-
-function AuthShowcase() {
-  const { data: sessionData } = useSession();
-
-  const { data: secretMessage } = api.example.getSecretMessage.useQuery(
-    undefined, // no input
-    { enabled: sessionData?.user !== undefined },
-  );
-
-  return (
-    <div className="flex flex-col items-center justify-center gap-4">
-      <p className="text-center text-2xl text-white">
-        {sessionData && <span>Logged in as {sessionData.user?.name}</span>}
-        {secretMessage && <span> - {secretMessage}</span>}
-      </p>
-      <button
-        className="rounded-full bg-white/10 px-10 py-3 font-semibold text-white no-underline transition hover:bg-white/20"
-        onClick={sessionData ? () => void signOut() : () => void signIn()}
-      >
-        {sessionData ? "Sign out" : "Sign in"}
-      </button>
-    </div>
   );
 }
